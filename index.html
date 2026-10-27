@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G1 World Classic Glory - ユーザー管理画面</title>
+<style>
+  body { margin: 0; font-family: -apple-system, sans-serif; background: #0a1810; color: #eee; padding: 20px; }
+  h1 { color: #ffd34d; font-size: 22px; border-bottom: 2px solid #2d5a44; padding-bottom: 10px; }
+  .card { background: #10231a; border-radius: 10px; padding: 16px; margin-top: 15px; border: 1px solid #2d5a44; }
+  .info-box { background: #183626; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; margin-bottom: 15px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  th, td { padding: 10px; border-bottom: 1px solid #2a4; text-align: left; }
+  th { background: #0a1810; color: #ffd34d; }
+  .btn { padding: 8px 14px; border: 0; border-radius: 6px; background: #2d5a44; color: #fff; cursor: pointer; }
+  .btn:hover { background: #3d7a5e; }
+  .coins { color: #ffd34d; font-weight: bold; }
+  .badge { background: #a33; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<h1>🏇 GWCG ユーザー管理ダッシュボード</h1>
+
+<div class="info-box">
+  🔒 <b>パスワードの閲覧について：</b><br>
+  Supabaseのセキュリティ仕様により、ユーザーのパスワードは暗号化（ハッシュ化）されてデータベースに記録されているため、生のパスワードを閲覧・復元することはできません。<br>
+  ここでは登録されているアカウントID、メールアドレス、所持コインなどのアカウント状態を確認できます。
+</div>
+
+<div class="card">
+  <button class="btn" onclick="fetchUsers()">🔄 ユーザー情報更新</button>
+  <table>
+    <thead>
+      <tr>
+        <th>ユーザーID</th>
+        <th>アカウント名</th>
+        <th>ログイン用Email</th>
+        <th>所持コイン</th>
+        <th>パスワード状態</th>
+      </tr>
+    </thead>
+    <tbody id="user-list">
+      <tr><td colspan="5">読み込み中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SB_URL = 'https://cntqlqvnruanmawtxiyp.supabase.co';
+const KEY = 'sb_publishable_28BRrTAEoLeyOgcOCvc9FA_hg5Ej2wC';
+const sb = supabase.createClient(SB_URL, KEY);
+
+// 巨大数値を和風単位付きで表示する関数
+const y = n => {
+  try {
+    let b = BigInt(typeof n === 'string' ? n.split('.')[0] : Math.floor(Number(n) || 0));
+    if (b === 0n) return '0';
+    const units = [
+      [10n**68n, '無量大数'], [10n**64n, '不可思議'], [10n**60n, '那由他'],
+      [10n**56n, '阿僧祇'], [10n**52n, '恒河沙'], [10n**48n, '極'],
+      [10n**44n, '載'], [10n**40n, '正'], [10n**36n, '澗'],
+      [10n**32n, '溝'], [10n**28n, '穣'], [10n**24n, '𥝱'],
+      [10n**20n, '垓'], [10n**16n, '京'], [10n**12n, '兆'],
+      [10n**8n, '億'], [10n**4n, '万']
+    ];
+    for (const [val, name] of units) {
+      if (b >= val) {
+        const main = b / val;
+        return `${main}${name}`;
+      }
+    }
+    return b.toLocaleString();
+  } catch(e) {
+    return String(n);
+  }
+};
+
+async function fetchUsers() {
+  const tbody = document.getElementById('user-list');
+  tbody.innerHTML = '<tr><td colspan="5">取得中...</td></tr>';
+
+  // Profiles テーブルからユーザー情報を取得
+  const { data, error } = await sb.from('profiles').select('*');
+
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#e55;">エラー: ${error.message}</td></tr>`;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5">登録ユーザーが見つかりません。</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(user => `
+    <tr>
+      <td style="font-size:11px; color:#aaa;">${user.id}</td>
+      <td><b>${user.name || '未設定'}</b></td>
+      <td>${user.name ? user.name + '@gwc-game.com' : '-'}</td>
+      <td class="coins">🪙 ${y(user.coins)}</td>
+      <td><span class="badge">暗号化済 (取得不可)</span></td>
+    </tr>
+  `).join('');
+}
+
+// 初回読み込み
+fetchUsers();
+</script>
+</body>
+</html>
